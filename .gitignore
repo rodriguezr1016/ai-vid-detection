@@ -1,0 +1,13 @@
+.env
+.venv/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+vendor/mintime/.git/
+vendor/mintime/.venv-mintime/
+vendor/mintime/weights/
+vendor/mintime/examples/preds/
+
+.DS_Store

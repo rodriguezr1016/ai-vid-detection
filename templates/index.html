@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Video Detector</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">Forensic Video Review</p>
+        <h1>Upload a video and inspect what the model, heuristics, and LLM each saw.</h1>
+        <p class="lede">
+          This UI combines a dedicated deepfake classifier, lightweight forensic signals, and a multimodal LLM into one verdict.
+        </p>
+      </section>
+
+      <section class="panel upload-panel">
+        <form action="/" method="post" enctype="multipart/form-data" class="upload-form">
+          <label for="video" class="file-label">Choose video</label>
+          <input id="video" type="file" name="video" accept="video/*" required />
+          <button type="submit">Analyze Video</button>
+        </form>
+        {% if error %}
+        <p class="error">{{ error }}</p>
+        {% endif %}
+      </section>
+
+      {% if result %}
+      <section class="results-grid">
+        <article class="panel verdict">
+          <p class="section-label">Final Verdict</p>
+          <h2>{{ result.label.replace("_", " ").title() }}</h2>
+          <div class="scorebar">
+            <span style="width: {{ (result.confidence * 100)|round|int }}%"></span>
+          </div>
+          <p class="confidence">Confidence {{ (result.confidence * 100)|round(1) }}%</p>
+          <p>{{ result.reasoning }}</p>
+        </article>
+
+        <article class="panel">
+          <p class="section-label">Signals</p>
+          <ul class="metrics">
+            <li><span>Heuristic artifact score</span><strong>{{ result.heuristics.synthetic_artifact_score }}</strong></li>
+            <li><span>Duplicate frame ratio</span><strong>{{ result.heuristics.duplicate_frame_ratio }}</strong></li>
+            <li><span>Motion instability</span><strong>{{ result.heuristics.motion_instability_mean }}</strong></li>
+            <li><span>Duration</span><strong>{{ result.metadata.duration_seconds }}s</strong></li>
+          </ul>
+        </article>
+
+        <article class="panel">
+          <p class="section-label">MINTIME</p>
+          {% if result.deepfake_model_review %}
+          <h3>{{ result.deepfake_model_review.verdict.replace("_", " ").title() }}</h3>
+          <p>Average fake probability {{ (result.deepfake_model_review.average_fake_probability * 100)|round(1) }}%</p>
+          <p>{{ result.deepfake_model_review.reasoning }}</p>
+          {% else %}
+          <p>MINTIME is unavailable. Check the configured Python environment, repo path, and model weights.</p>
+          {% endif %}
+        </article>
+
+        <article class="panel">
+          <p class="section-label">LLM Review</p>
+          {% if result.llm_review %}
+          <h3>{{ result.llm_review.verdict.replace("_", " ").title() }}</h3>
+          <p>{{ result.llm_review.reasoning }}</p>
+          {% if result.llm_review.suspicious_cues %}
+          <ul class="cues">
+            {% for cue in result.llm_review.suspicious_cues %}
+            <li>{{ cue }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+          {% else %}
+          <p>No LLM API key was configured, so the visual reasoning step was skipped.</p>
+          {% endif %}
+        </article>
+      </section>
+
+      {% if result.preview_frames %}
+      <section class="panel">
+        <p class="section-label">Sampled Frames</p>
+        <div class="frame-grid">
+          {% for frame in result.preview_frames %}
+          <img src="{{ frame }}" alt="Sampled video frame" />
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+      {% endif %}
+    </main>
+  </body>
+</html>
