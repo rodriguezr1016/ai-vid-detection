@@ -84,26 +84,33 @@ For local macOS testing, see [macos-mintime.md](/Users/renerodriguez/Desktop/pro
 
 ## Environment variables
 
-```bash
+`.env.example` is intentionally minimal. It only includes the variables you are most likely to edit for a real deployment.
+
+Starter `.env`:
+
+```env
 LLM_API_KEY=your_key
 LLM_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-4o-mini
-LLM_TIMEOUT_SECONDS=45
-FRAME_SAMPLE_COUNT=8
-MAX_VIDEO_DURATION_SECONDS=120
 MINTIME_PYTHON_BIN=C:\path\to\ai-video-detector\vendor\mintime\.venv-mintime\Scripts\python.exe
-MINTIME_REPO_PATH=C:\path\to\ai-video-detector\vendor\mintime
-MINTIME_CONFIG_PATH=C:\path\to\ai-video-detector\vendor\mintime\config\size_invariant_timesformer.yaml
 MINTIME_MODEL_WEIGHTS=C:\path\to\model_checkpoint
 MINTIME_EXTRACTOR_MODEL=1
 MINTIME_EXTRACTOR_WEIGHTS=C:\path\to\extractor_checkpoint
-MINTIME_DETECTOR_TYPE=FacenetDetector
 MINTIME_DEVICE=cuda
-MINTIME_GPU_ID=0
-MINTIME_TIMEOUT_SECONDS=300
 ```
 
 The LLM endpoint must be OpenAI-compatible and support image inputs if you want the vision step.
+
+Everything else falls back to built-in defaults:
+
+- `LLM_TIMEOUT_SECONDS=45`
+- `FRAME_SAMPLE_COUNT=8`
+- `MAX_VIDEO_DURATION_SECONDS=120`
+- `MINTIME_REPO_PATH=<project>/vendor/mintime`
+- `MINTIME_CONFIG_PATH=<project>/vendor/mintime/config/size_invariant_timesformer.yaml`
+- `MINTIME_DETECTOR_TYPE=FacenetDetector`
+- `MINTIME_GPU_ID=0`
+- `MINTIME_TIMEOUT_SECONDS=300`
 
 ## MINTIME setup
 
@@ -206,16 +213,13 @@ LLM_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-4o-mini
 
 MINTIME_PYTHON_BIN=C:\path\to\ai-video-detector\vendor\mintime\.venv-mintime\Scripts\python.exe
-MINTIME_REPO_PATH=C:\path\to\ai-video-detector\vendor\mintime
-MINTIME_CONFIG_PATH=C:\path\to\ai-video-detector\vendor\mintime\config\size_invariant_timesformer.yaml
 MINTIME_MODEL_WEIGHTS=C:\path\to\ai-video-detector\vendor\mintime\weights\MINTIME_XC_Model_checkpoint30
 MINTIME_EXTRACTOR_MODEL=1
 MINTIME_EXTRACTOR_WEIGHTS=C:\path\to\ai-video-detector\vendor\mintime\weights\MINTIME_XC_Extractor_checkpoint30
-MINTIME_DETECTOR_TYPE=FacenetDetector
 MINTIME_DEVICE=cuda
-MINTIME_GPU_ID=0
-MINTIME_TIMEOUT_SECONDS=300
 ```
+
+You usually do not need to add `MINTIME_REPO_PATH`, `MINTIME_CONFIG_PATH`, `MINTIME_GPU_ID`, or timeout settings unless you want to override the defaults.
 
 Start the app:
 
