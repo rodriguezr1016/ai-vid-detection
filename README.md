@@ -48,16 +48,39 @@ src/ai_video_detector/
   video.py
 ```
 
-## Setup
+## Recommended deployment
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
+The best target for this project is a Windows PC with an NVIDIA GPU such as an RTX 4070.
+
+That setup is preferred because:
+
+- the FastAPI app and UI are lightweight
+- MINTIME was originally built around a CUDA/PyTorch workflow
+- a dedicated NVIDIA desktop is a better target than a MacBook for video-level inference
+
+macOS can still be used for UI-only testing, but the main detector should be treated as a Windows GPU deployment target.
+
+## App setup
+
+Prerequisites:
+
+- Python 3.10
+- Git
+- NVIDIA driver installed
+- A CUDA-compatible PyTorch build for your GPU
+
+PowerShell:
+
+```powershell
+py -3.10 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip setuptools wheel
 pip install -e ".[dev]"
-cp .env.example .env
+Copy-Item .env.example .env
 ```
 
 For Linux + AMD ROCm deployment, see [linux-rocm.md](/Users/renerodriguez/Desktop/projects/ai-video-detector/docs/linux-rocm.md).
+For local macOS testing, see [macos-mintime.md](/Users/renerodriguez/Desktop/projects/ai-video-detector/docs/macos-mintime.md).
 
 ## Environment variables
 
@@ -68,13 +91,14 @@ LLM_MODEL=gpt-4o-mini
 LLM_TIMEOUT_SECONDS=45
 FRAME_SAMPLE_COUNT=8
 MAX_VIDEO_DURATION_SECONDS=120
-MINTIME_PYTHON_BIN=/absolute/path/to/mintime-env/bin/python
-MINTIME_REPO_PATH=/absolute/path/to/ai-video-detector/vendor/mintime
-MINTIME_CONFIG_PATH=/absolute/path/to/ai-video-detector/vendor/mintime/config/size_invariant_timesformer.yaml
-MINTIME_MODEL_WEIGHTS=/absolute/path/to/mintime_model_weights
-MINTIME_EXTRACTOR_MODEL=0
-MINTIME_EXTRACTOR_WEIGHTS=ImageNet
+MINTIME_PYTHON_BIN=C:\path\to\ai-video-detector\vendor\mintime\.venv-mintime\Scripts\python.exe
+MINTIME_REPO_PATH=C:\path\to\ai-video-detector\vendor\mintime
+MINTIME_CONFIG_PATH=C:\path\to\ai-video-detector\vendor\mintime\config\size_invariant_timesformer.yaml
+MINTIME_MODEL_WEIGHTS=C:\path\to\model_checkpoint
+MINTIME_EXTRACTOR_MODEL=1
+MINTIME_EXTRACTOR_WEIGHTS=C:\path\to\extractor_checkpoint
 MINTIME_DETECTOR_TYPE=FacenetDetector
+MINTIME_DEVICE=cuda
 MINTIME_GPU_ID=0
 MINTIME_TIMEOUT_SECONDS=300
 ```
@@ -93,22 +117,118 @@ python3 predict.py \
   --config config/size_invariant_timesformer.yaml
 ```
 
-You still need to provide the MINTIME model weights. The upstream README points to their model zoo hosted on Google Drive:
+You still need to provide the MINTIME weights. The upstream README points to their model zoo hosted on Google Drive:
 
 - [MINTIME repository](https://github.com/davide-coccomini/MINTIME-Multi-Identity-size-iNvariant-TIMEsformer-for-Video-Deepfake-Detection)
 - [MINTIME paper](https://ieeexplore.ieee.org/document/10547206)
 - [Model zoo link from the README](https://drive.google.com/drive/folders/19bNOs8_rZ7LmPP3boDS3XvZcR1iryHR1?usp=sharing)
 
-MINTIME has a heavier runtime than the rest of this app. In practice, create a separate Python 3.8-3.10 environment for it, install the dependencies from [vendor/mintime/environment.yml](/Users/renerodriguez/Desktop/projects/ai-video-detector/vendor/mintime/environment.yml), then point `MINTIME_PYTHON_BIN` at that environment's `python`.
+For the current app integration, use the `XC` pair of checkpoints from the model zoo:
+
+- `MINTIME_XC_Model_checkpoint30`
+- `MINTIME_XC_Extractor_checkpoint30`
+
+These match the Xception-backed path, so the correct settings are:
+
+```bash
+MINTIME_EXTRACTOR_MODEL=1
+MINTIME_MODEL_WEIGHTS=/absolute/path/to/MINTIME_XC_Model_checkpoint30
+MINTIME_EXTRACTOR_WEIGHTS=/absolute/path/to/MINTIME_XC_Extractor_checkpoint30
+```
+
+MINTIME has a heavier runtime than the rest of this app. In practice, create a separate Python 3.10 environment for it and point `MINTIME_PYTHON_BIN` at that environment's `python.exe`.
 
 For ROCm/Linux specifically, this repo includes:
 
 - [setup_app_env.sh](/Users/renerodriguez/Desktop/projects/ai-video-detector/scripts/setup_app_env.sh)
+- [setup_mintime_mac.sh](/Users/renerodriguez/Desktop/projects/ai-video-detector/scripts/setup_mintime_mac.sh)
 - [setup_mintime_rocm.sh](/Users/renerodriguez/Desktop/projects/ai-video-detector/scripts/setup_mintime_rocm.sh)
+
+For a Windows NVIDIA machine such as a PC with an RTX 4070, use a dedicated MINTIME venv with CUDA-enabled PyTorch. Do not assume anything is installed. Install Python 3.10 first, then create the venv, then install PyTorch, then install the remaining MINTIME dependencies.
+
+Example outline:
+
+```powershell
+cd vendor/mintime
+py -3.10 -m venv .venv-mintime
+.venv-mintime\Scripts\Activate.ps1
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install torch torchvision torchaudio
+python -m pip install \
+  facenet-pytorch==2.5.3 \
+  efficientnet-pytorch==0.7.1 \
+  einops==0.6.0 \
+  albumentations==0.5.2 \
+  imgaug==0.4.0 \
+  imageio==2.37.0 \
+  opencv-python==4.11.0.86 \
+  pillow==10.2.0 \
+  scikit-image==0.22.0 \
+  scikit-learn==1.5.2 \
+  scipy==1.13.1 \
+  pyyaml==6.0.2 \
+  pandas==2.2.3 \
+  matplotlib==3.8.4 \
+  networkx==3.3 \
+  shapely==2.0.7 \
+  tabulate==0.9.0 \
+  termcolor==2.5.0 \
+  torchsummary==1.5.1 \
+  tqdm==4.67.1 \
+  yacs==0.1.8 \
+  timm==0.9.16
+```
+
+If the plain `torch torchvision torchaudio` install does not give you a CUDA build, install the correct PyTorch command for your CUDA version from the official PyTorch selector first, then run the remaining package install.
+
+For local macOS use, start with `MINTIME_DEVICE=cpu`. The vendored MINTIME inference path has been patched to support `cpu`, `mps`, and `cuda`, but `cpu` is the safest default on a MacBook.
+The macOS setup script intentionally skips `av` and `pytorchvideo`, because the local prediction path does not require them.
+
+## Windows RTX 4070 quick start
+
+On the target Windows PC:
+
+```powershell
+git clone <your-repo-url>
+cd ai-video-detector
+py -3.10 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip setuptools wheel
+pip install -e ".[dev]"
+Copy-Item .env.example .env
+```
+
+Create the MINTIME environment, download the two `XC` checkpoints into `vendor/mintime/weights/`, and set `.env` to something like:
+
+```env
+LLM_API_KEY=your_openai_api_key
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-4o-mini
+
+MINTIME_PYTHON_BIN=C:\path\to\ai-video-detector\vendor\mintime\.venv-mintime\Scripts\python.exe
+MINTIME_REPO_PATH=C:\path\to\ai-video-detector\vendor\mintime
+MINTIME_CONFIG_PATH=C:\path\to\ai-video-detector\vendor\mintime\config\size_invariant_timesformer.yaml
+MINTIME_MODEL_WEIGHTS=C:\path\to\ai-video-detector\vendor\mintime\weights\MINTIME_XC_Model_checkpoint30
+MINTIME_EXTRACTOR_MODEL=1
+MINTIME_EXTRACTOR_WEIGHTS=C:\path\to\ai-video-detector\vendor\mintime\weights\MINTIME_XC_Extractor_checkpoint30
+MINTIME_DETECTOR_TYPE=FacenetDetector
+MINTIME_DEVICE=cuda
+MINTIME_GPU_ID=0
+MINTIME_TIMEOUT_SECONDS=300
+```
+
+Start the app:
+
+```powershell
+.venv\Scripts\Activate.ps1
+uvicorn ai_video_detector.api:app --host 0.0.0.0 --port 8000
+```
+
+Then open the UI from another machine at `http://<windows-host>:8000/`.
 
 ## CLI usage
 
-```bash
+```powershell
 ai-video-detector /absolute/path/to/video.mp4
 ```
 
@@ -126,7 +246,7 @@ Example output:
 
 Start the API:
 
-```bash
+```powershell
 uvicorn ai_video_detector.api:app --reload
 ```
 
@@ -138,7 +258,7 @@ http://127.0.0.1:8000/
 
 Analyze a file:
 
-```bash
+```powershell
 curl -X POST "http://127.0.0.1:8000/analyze" \
   -F "video=@/absolute/path/to/video.mp4"
 ```

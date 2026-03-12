@@ -13,17 +13,23 @@ from typing import Dict
 import json
 import urllib
 from torchvision.transforms import Compose, Lambda
-from torchvision.transforms._transforms_video import (
-    CenterCropVideo,
-    NormalizeVideo,
-)
-from pytorchvideo.data.encoded_video import EncodedVideo
-from pytorchvideo.transforms import (
-    ApplyTransformToKey,
-    ShortSideScale,
-    UniformTemporalSubsample,
-    UniformCropVideo
-) 
+
+try:
+    from torchvision.transforms._transforms_video import (
+        CenterCropVideo,
+        NormalizeVideo,
+    )
+    from pytorchvideo.transforms import (
+        ShortSideScale,
+        UniformTemporalSubsample,
+    )
+    _PYTORCHVIDEO_AVAILABLE = True
+except ImportError:
+    CenterCropVideo = None
+    NormalizeVideo = None
+    ShortSideScale = None
+    UniformTemporalSubsample = None
+    _PYTORCHVIDEO_AVAILABLE = False
 
 PLOTS_NAMES = ["space", "time", "combined"]
 
@@ -164,6 +170,8 @@ class PackPathway(torch.nn.Module):
         return frame_list
 
 def slowfast_input_transform(videos, crop_size = 256, side_size = 256, num_frames = 32, sampling_rate = 2, frames_per_second = 30, mean = [0.45, 0.45, 0.45], std = [0.225, 0.225, 0.225]):
+    if not _PYTORCHVIDEO_AVAILABLE:
+        raise ImportError("pytorchvideo is required for the SlowFast input transform.")
     transform=Compose(
         [
             UniformTemporalSubsample(num_frames),

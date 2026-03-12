@@ -18,6 +18,7 @@ class DeepfakeModelClient:
         extractor_model: int | None = None,
         extractor_weights: str | None = None,
         detector_type: str | None = None,
+        device: str | None = None,
         gpu_id: int | None = None,
         timeout_seconds: int | None = None,
     ) -> None:
@@ -30,6 +31,7 @@ class DeepfakeModelClient:
         )
         self.extractor_weights = extractor_weights or settings.mintime_extractor_weights
         self.detector_type = detector_type or settings.mintime_detector_type
+        self.device = device or settings.mintime_device
         self.gpu_id = settings.mintime_gpu_id if gpu_id is None else gpu_id
         self.timeout_seconds = (
             settings.mintime_timeout_seconds if timeout_seconds is None else timeout_seconds
@@ -63,12 +65,14 @@ class DeepfakeModelClient:
             str(self.config_path),
             "--detector_type",
             self.detector_type,
+            "--device",
+            self.device,
             "--gpu_id",
             str(self.gpu_id),
             "--output_type",
             "0",
             "--workers",
-            "1",
+            "0",
         ]
 
         completed = subprocess.run(

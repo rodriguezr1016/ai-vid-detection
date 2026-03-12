@@ -33,14 +33,46 @@ from models.xception import xception
 
 RANGE_SIZE = 5
 SIZE_EMB_DICT = [(1+i*RANGE_SIZE, (i+1)*RANGE_SIZE) if i != 0 else (0, RANGE_SIZE) for i in range(20)]
+device = torch.device("cpu")
+
+
+def identity_collate(batch):
+    return batch
+
+
+def resolve_device(device_name: str, gpu_id: int):
+    normalized = device_name.lower()
+    if normalized == "auto":
+        if torch.cuda.is_available():
+            return torch.device(f"cuda:{gpu_id}")
+        if torch.backends.mps.is_available():
+            return torch.device("mps")
+        return torch.device("cpu")
+    if normalized == "cuda":
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA was requested but is not available.")
+        return torch.device(f"cuda:{gpu_id}")
+    if normalized == "mps":
+        if not torch.backends.mps.is_available():
+            raise RuntimeError("MPS was requested but is not available.")
+        return torch.device("mps")
+    if normalized == "cpu":
+        return torch.device("cpu")
+    raise RuntimeError(f"Unsupported device: {device_name}")
 
 def detect_faces(video_path, detector_cls: Type[VideoFaceDetector], opt):
     # Init the face detector
-    detector = face_detector.__dict__[detector_cls](device=opt.gpu_id)
+    detector = face_detector.__dict__[detector_cls](device=str(device))
 
     # Read the video and its information
     dataset = VideoDataset([video_path])
-    loader = DataLoader(dataset, shuffle=False, num_workers=opt.workers, batch_size=1, collate_fn=lambda x: x)
+    loader = DataLoader(
+        dataset,
+        shuffle=False,
+        num_workers=opt.workers,
+        batch_size=1,
+        collate_fn=identity_collate,
+    )
     
     # Detect the faces
     for item in loader: 
@@ -153,7 +185,7 @@ def cluster_faces(crops, valid_cluster_size_ratio = 0.20, similarity_threshold =
     faces = torch.as_tensor(faces)
     faces = faces.permute(0, 3, 1, 2).float()
     faces = fixed_image_standardization(faces)
-    face_recognition_input = faces.cuda()
+    face_recognition_input = faces.to(device)
     embeddings = []
     embeddings = embeddings_extractor(face_recognition_input).detach().cpu().numpy()
 
@@ -375,8 +407,9 @@ def predict(video_path, clustered_faces, config, opt, discarded_faces = None):
     num_patches = config['model']['num-patches']
 
     
-    features_extractor = torch.nn.DataParallel(features_extractor)
-    model = torch.nn.DataParallel(model)
+    if device.type == "cuda":
+        features_extractor = torch.nn.DataParallel(features_extractor)
+        model = torch.nn.DataParallel(model)
 
     # Move into GPU
     features_extractor = features_extractor.to(device)    
@@ -385,7 +418,7 @@ def predict(video_path, clustered_faces, config, opt, discarded_faces = None):
     model.eval()
 
     if os.path.exists(opt.model_weights):
-        model.load_state_dict(torch.load(opt.model_weights))
+        model.load_state_dict(torch.load(opt.model_weights, map_location=device))
     else:
         raise Exception("No checkpoint loaded for the model.")    
     
@@ -492,6 +525,9 @@ if __name__ == "__main__":
                         help='Random state value')
     parser.add_argument('--gpu_id', default=0, type=int,
                         help='ID of GPU to be used')
+    parser.add_argument('--device', default='auto', type=str,
+                        choices=['auto', 'cpu', 'cuda', 'mps'],
+                        help='Torch device to use for inference.')
     parser.add_argument('--workers', default=1, type=int,
                         help='Number of data loader workers.')
     parser.add_argument('--config', type=str, 
@@ -510,8 +546,7 @@ if __name__ == "__main__":
     opt = parser.parse_args()
     print(opt)
     
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = resolve_device(opt.device, opt.gpu_id)
     with open(opt.config, 'r') as ymlfile:
         config = yaml.safe_load(ymlfile)
 
@@ -522,13 +557,13 @@ if __name__ == "__main__":
     if not os.path.exists(opt.video_path):
         raise Exception("Invalid video path.")
  
-
-    # Setup CUDA settings
-    torch.cuda.set_device(opt.gpu_id) 
-    torch.backends.cudnn.deterministic = True
     random.seed(opt.random_state)
     torch.manual_seed(opt.random_state)
-    torch.cuda.manual_seed(opt.random_state)
+    if torch.cuda.is_available():
+        torch.backends.cudnn.deterministic = True
+        if device.type == "cuda":
+            torch.cuda.set_device(opt.gpu_id)
+        torch.cuda.manual_seed(opt.random_state)
     np.random.seed(opt.random_state)
 
 

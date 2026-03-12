@@ -39,6 +39,8 @@ class FacenetDetector(VideoFaceDetector):
 
     def __init__(self, device="cuda:0") -> None:
         super().__init__()
+        if isinstance(device, int):
+            device = f"cuda:{device}" if device >= 0 else "cpu"
         self.detector =  MTCNN(
             device=device,
             thresholds=[0.85, 0.95, 0.95],

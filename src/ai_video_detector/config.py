@@ -34,6 +34,7 @@ class Settings(BaseModel):
     mintime_extractor_model: int = Field(default=int(os.getenv("MINTIME_EXTRACTOR_MODEL", "0")))
     mintime_extractor_weights: str = Field(default=os.getenv("MINTIME_EXTRACTOR_WEIGHTS", "ImageNet"))
     mintime_detector_type: str = Field(default=os.getenv("MINTIME_DETECTOR_TYPE", "FacenetDetector"))
+    mintime_device: str = Field(default=os.getenv("MINTIME_DEVICE", "cpu"))
     mintime_gpu_id: int = Field(default=int(os.getenv("MINTIME_GPU_ID", "0")))
     mintime_timeout_seconds: int = Field(default=int(os.getenv("MINTIME_TIMEOUT_SECONDS", "300")))
 

@@ -9,5 +9,6 @@ vendor/mintime/.git/
 vendor/mintime/.venv-mintime/
 vendor/mintime/weights/
 vendor/mintime/examples/preds/
+vendor/mintime/.pytest_cache/
 
 .DS_Store
